@@ -4,14 +4,15 @@ from tqdm import tqdm
 import numpy as np
 
 
-def load_image(filename):
+def load_image(filename, size):
     img = Image.open(filename).convert('RGB')
+    img = img.resize(size, Image.LANCZOS)
     img = np.array(img).astype('float32')
     img = (img / 127.5) - 1.0
     return img
 
-def unpreprocess_image(image):
-    img = (img + 1.0) * 255.
+def unpreprocess_image(img):
+    img = (img + 1.0) * 127.5
     img = img.astype('uint8')
     return img
 
