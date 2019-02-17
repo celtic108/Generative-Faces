@@ -4,16 +4,21 @@ import numpy as np
 
 initializer = tf.initializers.random_normal(0, 0.001)    
 
-def encoder(net, latent_size):
+def encoder(net, latent_size, use_tanh):
     for j in range(9):
         curr_channels = min(latent_size, 32 * 2**(j//2))
         for i in range(2):
             net = tf.layers.conv2d(net, curr_channels, 3, padding='same',
                                    kernel_initializer = initializer,
                                    activation = tf.nn.leaky_relu)
-        net = tf.layers.conv2d(net, curr_channels, 3, strides=(2,2), 
-                               kernel_initializer = initializer, padding='same',
-                               activation = tf.nn.leaky_relu)
+        if j == 8 and use_tanh:
+            net = tf.layers.conv2d(net, curr_channels, 3, strides=(2,2), 
+                                   kernel_initializer = initializer, padding='same',
+                                   activation = tf.nn.tanh)
+        else:
+            net = tf.layers.conv2d(net, curr_channels, 3, strides=(2,2), 
+                                   kernel_initializer = initializer, padding='same',
+                                   activation = tf.nn.leaky_relu)
 
     return net
 
@@ -66,3 +71,28 @@ def decoder(latent_space, batch_size, latent_size):
 
 def get_loss(x, y):
     return tf.reduce_sum(tf.pow((x - y), 2))
+
+def get_vgg_loss(x, y):
+    from tensorflow.contrib.slim.nets import vgg as model_module
+    combined_images = tf.concat([x, y], axis=0)
+    input_img = (combined_images + 1.0) / 2.0
+    VGG_MEANS = np.array([[[[0.485, 0.456, 0.406]]]]).astype('float32')
+    VGG_MEANS = tf.constant(VGG_MEANS, shape=[1,1,1,3])
+    vgg_input = (input_img - VGG_MEANS) * 255.0
+    bgr_input = tf.stack([vgg_input[:,:,:,2], 
+                          vgg_input[:,:,:,1], 
+                          vgg_input[:,:,:,0]], axis=-1)
+        
+    slim = tf.contrib.slim
+    with slim.arg_scope(model_module.vgg_arg_scope()):
+        _, end_points = model_module.vgg_19(
+        bgr_input, num_classes=1000, spatial_squeeze = False, is_training=False)
+
+    loss = 0
+    for layer in ['vgg_19/conv2/conv2_1', 'vgg_19/conv3/conv3_1']:
+        layer_shape = tf.shape(end_points[layer])
+        x_vals = end_points[layer][:layer_shape[0]//2]
+        y_vals = end_points[layer][layer_shape[0]//2:]
+        loss += tf.reduce_mean(tf.pow(x_vals - y_vals, 2))
+
+    return loss

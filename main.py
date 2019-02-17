@@ -6,13 +6,15 @@ import misc_utils
 from random import shuffle
 import time
 
-epochs = 1
-batch_size = 8
+epochs = 130
+batch_size = 2
 size = (512, 512)
 z_space = 256
-learning_rate = 0.001
+learning_rate = 0.01
 loss_smoothing = 1000
-model_path = '/tmp/model.ckpt'
+model_path = './tmp/model_w_tanh.ckpt'
+use_tanh_latent_space = True
+use_vgg_loss = True
 
 
 file_list = load_data.get_image_file_list('./lag-dataset/')
@@ -21,8 +23,7 @@ total_number_of_images = len(file_list)
 
 X = tf.placeholder(tf.float32, shape=(None, *size, 3))
 
-
-latent_space = network_utils.encoder(X, z_space)
+latent_space = network_utils.encoder(X, z_space, use_tanh_latent_space)
 
 output = network_utils.decoder(latent_space, batch_size, z_space)
 
@@ -34,16 +35,27 @@ dataset = dataset.batch(batch_size)
 iterator = dataset.make_initializable_iterator()
 next_element = iterator.get_next()
 
-loss = network_utils.get_loss(X, output)
+training_vars = tf.trainable_variables()
 
-optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+loss = 0
+if use_vgg_loss:
+    loss += network_utils.get_vgg_loss(X, output)
+    slim = tf.contrib.slim
+    vgg_saver = tf.train.Saver(slim.get_model_variables())
+loss += network_utils.get_loss(X, output)
+
+optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss, var_list = training_vars)
 
 saver = tf.train.Saver()
 
 start_time = time.time()
 iterations = 0
+quit_all = False
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
+    if use_vgg_loss:
+        vgg_saver.restore(sess, './tmp/vgg_19.ckpt')
+        print("Loaded vgg values")
     try:
         saver.restore(sess, model_path)
         print("Restored model from ", model_path)
@@ -67,8 +79,16 @@ with tf.Session() as sess:
                 saver.save(sess, model_path)
                 sess.run(iterator.initializer)
                 a = sess.run(next_element)
-                temp_image = sess.run(output, feed_dict={X:a[0]})
-                load_data.display_image(load_data.unpreprocess_image(a[0][0]))
-                load_data.display_image(load_data.unpreprocess_image(temp_image[0]))
                 break
+            except KeyboardInterrupt:
+                ans = input("Would you like to quit? (y/n): ")
+                if ans in ['yes', 'YES', 'y', 'Y', 'Yes']:
+                    quit_all = True
+                    break
+                temp_image = sess.run(output, feed_dict={X:a[0]})
+                for i in range(len(a[0])):
+                    load_data.display_image(load_data.unpreprocess_image(a[0][i]))
+                    load_data.display_image(load_data.unpreprocess_image(temp_image[i]))
+        if quit_all:
+            break
             
