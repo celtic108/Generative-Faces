@@ -2,6 +2,7 @@ from PIL import Image
 from os import walk, path
 from tqdm import tqdm
 import numpy as np
+import os
 
 
 def load_image(filename, size):
@@ -16,11 +17,21 @@ def unpreprocess_image(img):
     img = img.astype('uint8')
     return img
 
-def display_image(image):
+def display_image(image, save_dir = None):
     if image.shape[0] == 1:
         image = image[0]
-    image = Image.fromarray(np.clip(image, 0, 255))
+    image = Image.fromarray(np.clip(image, 0, 255).astype('uint8'))
     image.show()
+    if save_dir is not None:
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        count = 0
+        for root, dirs, files in os.walk(save_dir):
+            for file in files:
+                count += 1
+        image.save(os.path.join(root, str(count) + '.png'))
+
+
 
 def get_image_file_list(folder_path):
     file_list = []
