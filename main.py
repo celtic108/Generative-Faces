@@ -6,6 +6,7 @@ import misc_utils
 from random import shuffle
 import time
 from math import log
+from PIL import Image
 from open_greg import get_greg
 
 epochs = 1300000
@@ -122,10 +123,18 @@ with tf.Session() as sess:
                         save_dir = './trial_images'
                     else:
                         save_dir = './' + str(ans)
-                greg = np.expand_dims(get_greg(), 0)
-                load_data.display_image(greg, save_dir)
-                greg_re = sess.run(output, feed_dict = {X:(greg / 127.5) - 1.0})
-                load_data.display_image(load_data.unpreprocess_image(greg_re[0]), save_dir)
+                #greg = np.expand_dims(get_greg(), 0)
+                #load_data.display_image(greg, save_dir)
+                #greg_re = sess.run(output, feed_dict = {X:(greg / 127.5) - 1.0})
+                #load_data.display_image(load_data.unpreprocess_image(greg_re[0]), save_dir)
+                #rowan = np.expand_dims(np.array(Image.open('rowan.jpg').resize((256,256), resample=Image.LANCZOS).convert("RGB")), 0)
+                #load_data.display_image(rowan, save_dir)
+                #greg_re = sess.run(output, feed_dict = {X:(rowan / 127.5) - 1.0})
+                #load_data.display_image(load_data.unpreprocess_image(greg_re[0]), save_dir)
+                #miles = np.expand_dims(np.array(Image.open('miles.jpg').resize((256,256), resample=Image.LANCZOS).convert("RGB")), 0)
+                #load_data.display_image(miles, save_dir)
+                #greg_re = sess.run(output, feed_dict = {X:(miles / 127.5) - 1.0})
+                #load_data.display_image(load_data.unpreprocess_image(greg_re[0]), save_dir)
                 temp_image = sess.run(output, feed_dict={X:a[0]})
                 temp_variation = np.std(temp_image, axis=0)
                 load_data.display_image(temp_variation*255, save_dir)
